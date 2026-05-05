@@ -9,6 +9,9 @@ from .medicine import (
 )
 from .medication_log import MedicationLogUpsert, MedicationLogResponse
 from .prescription import PrescriptionResponse, ScanResponse
+from .lab_report import LabResult, LabReportCreate, LabReportResponse
+from .flare_entry import FlareEntryUpsert, FlareEntryResponse
+from .appointment import AppointmentCreate, AppointmentUpdate, AppointmentResponse
 
 __all__ = [
     "UserResponse",
@@ -24,4 +27,12 @@ __all__ = [
     "MedicationLogResponse",
     "PrescriptionResponse",
     "ScanResponse",
+    "LabResult",
+    "LabReportCreate",
+    "LabReportResponse",
+    "FlareEntryUpsert",
+    "FlareEntryResponse",
+    "AppointmentCreate",
+    "AppointmentUpdate",
+    "AppointmentResponse",
 ]
