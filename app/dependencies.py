@@ -19,9 +19,13 @@ async def get_current_user(
     user_id = uuid.UUID(raw_id)
     result = await db.execute(select(User).where(User.user_id == user_id))
     user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User profile not found",
+    if user is None:
+        display_name = (
+            payload.get("user_metadata", {}).get("display_name")
+            or payload.get("email")
         )
+        user = User(user_id=user_id, display_name=display_name)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
     return user
