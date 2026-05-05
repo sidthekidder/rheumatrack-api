@@ -1,11 +1,15 @@
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
 import httpx
+from fastapi import HTTPException, status
 
 from app.config import settings
 
 PRESCRIPTIONS_BUCKET = "prescriptions"
+
+log = logging.getLogger(__name__)
 
 
 async def upload_prescription(
@@ -23,8 +27,18 @@ async def upload_prescription(
             headers={
                 "Authorization": f"Bearer {settings.supabase_service_role_key}",
                 "Content-Type": mime,
-                "x-upsert": "false",
+                "x-upsert": "true",
             },
         )
-    resp.raise_for_status()
+    if resp.is_error:
+        log.error(
+            "Supabase storage upload failed: %s %s — %s",
+            resp.status_code,
+            url,
+            resp.text,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Storage upload failed ({resp.status_code}): {resp.text}",
+        )
     return path
