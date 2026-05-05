@@ -26,6 +26,7 @@ async def upload_prescription(
             content=content,
             headers={
                 "Authorization": f"Bearer {settings.supabase_service_role_key}",
+                "apikey": settings.supabase_service_role_key,
                 "Content-Type": mime,
                 "x-upsert": "true",
             },
