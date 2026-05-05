@@ -1,6 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,10 +11,6 @@ from ..schemas.medicine import MedicineCreate, MedicineUpdate, MedicineResponse
 
 
 router = APIRouter(prefix="/medicines", tags=["medicines"])
-
-
-class BulkMedicineCreate(BaseModel):
-    medicines: list[MedicineCreate]
 
 
 @router.get("", response_model=list[MedicineResponse])
@@ -49,16 +44,16 @@ async def create_medicine(
 
 @router.post("/bulk", response_model=list[MedicineResponse])
 async def bulk_create_medicines(
-    payload: BulkMedicineCreate,
+    payload: list[MedicineCreate] = Body(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Medicine]:
+    if not payload:
+        return []
     medicines = [
         Medicine(patient_id=current_user.user_id, **m.model_dump())
-        for m in payload.medicines
+        for m in payload
     ]
-    if not medicines:
-        return []
     db.add_all(medicines)
     await db.commit()
     for m in medicines:
