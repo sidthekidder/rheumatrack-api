@@ -139,13 +139,11 @@ async def test_get_after_post_shows_row(
 async def test_bulk_creates_n_rows(
     client: AsyncClient, seed_patient, cleanup
 ):
-    bulk = {
-        "medicines": [
-            _med_payload(drug_name="Drug A", brand_name="A"),
-            _med_payload(drug_name="Drug B", brand_name="B"),
-            _med_payload(drug_name="Drug C", brand_name="C"),
-        ]
-    }
+    bulk = [
+        _med_payload(drug_name="Drug A", brand_name="A"),
+        _med_payload(drug_name="Drug B", brand_name="B"),
+        _med_payload(drug_name="Drug C", brand_name="C"),
+    ]
     response = await client.post("/medicines/bulk", json=bulk)
     assert response.status_code == 200, response.text
     rows = response.json()
@@ -263,6 +261,6 @@ async def test_delete_foreign_user_returns_404(
 async def test_bulk_empty_list_returns_empty(
     client: AsyncClient, seed_patient, cleanup
 ):
-    response = await client.post("/medicines/bulk", json={"medicines": []})
+    response = await client.post("/medicines/bulk", json=[])
     assert response.status_code == 200
     assert response.json() == []
