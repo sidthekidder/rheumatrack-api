@@ -16,6 +16,10 @@ class PatientCreate(BaseModel):
     doctor_hospital: str | None = None
     diagnosis: str | None = None
     theme: str | None = None
+    doctor_website_url: str | None = None
+    doctor_instagram_url: str | None = None
+    doctor_youtube_url: str | None = None
+    language: str | None = None
 
 
 class PatientUpdate(BaseModel):
@@ -31,6 +35,10 @@ class PatientUpdate(BaseModel):
     doctor_hospital: str | None = None
     diagnosis: str | None = None
     theme: str | None = None
+    doctor_website_url: str | None = None
+    doctor_instagram_url: str | None = None
+    doctor_youtube_url: str | None = None
+    language: str | None = None
 
 
 class PatientResponse(BaseModel):
@@ -47,6 +55,10 @@ class PatientResponse(BaseModel):
     doctor_hospital: str | None
     diagnosis: str | None
     theme: str | None
+    doctor_website_url: str | None
+    doctor_instagram_url: str | None
+    doctor_youtube_url: str | None
+    language: str
     created_at: datetime
     updated_at: datetime
 
