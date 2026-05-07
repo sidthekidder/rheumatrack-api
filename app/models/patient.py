@@ -22,6 +22,10 @@ class Patient(Base):
     doctor_hospital: Mapped[str | None] = mapped_column(String, nullable=True)
     diagnosis: Mapped[str | None] = mapped_column(String, nullable=True)
     theme: Mapped[str | None] = mapped_column(String, nullable=True, server_default="system")
+    doctor_website_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    doctor_instagram_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    doctor_youtube_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    language: Mapped[str] = mapped_column(String, nullable=False, server_default="en")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
