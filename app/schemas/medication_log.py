@@ -24,3 +24,18 @@ class MedicationLogResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class MedicationLogHistoryResponse(BaseModel):
+    id: uuid.UUID
+    log_id: uuid.UUID
+    patient_id: uuid.UUID
+    medicine_id: uuid.UUID
+    log_date: date
+    slot: str
+    prior_taken: bool | None
+    new_taken: bool
+    edited_by_user_id: uuid.UUID
+    edited_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

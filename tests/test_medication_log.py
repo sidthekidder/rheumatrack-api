@@ -7,6 +7,7 @@ from sqlalchemy import delete, select
 
 from app.database import AsyncSessionLocal
 from app.models.medication_log import MedicationLog
+from app.models.medication_log_history import MedicationLogHistory
 from app.models.medicine import Medicine
 from app.models.patient import Patient
 from app.models.user import User
@@ -338,3 +339,148 @@ async def test_get_default_range_returns_last_30_days(
     rows = response.json()
     assert len(rows) == 1
     assert rows[0]["log_date"] == in_range_date.isoformat()
+
+
+# ---------------------------------------------------------------------------
+# Edit history (medication_log_history)
+# ---------------------------------------------------------------------------
+
+async def _history_rows(patient_id: uuid.UUID) -> list[MedicationLogHistory]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(MedicationLogHistory)
+            .where(MedicationLogHistory.patient_id == patient_id)
+            .order_by(MedicationLogHistory.edited_at.asc())
+        )
+        return list(result.scalars().all())
+
+
+async def test_first_put_creates_history_row(
+    client: AsyncClient, fake_user, seed_medicine, cleanup
+):
+    today = date.today()
+    resp = await client.put(
+        "/medication-log",
+        json={
+            "medicine_id": str(seed_medicine),
+            "log_date": today.isoformat(),
+            "slot": "morning",
+            "taken": True,
+        },
+    )
+    assert resp.status_code == 200
+
+    history = await _history_rows(fake_user.user_id)
+    assert len(history) == 1
+    h = history[0]
+    assert h.prior_taken is None
+    assert h.new_taken is True
+    assert h.medicine_id == seed_medicine
+    assert h.log_date == today
+    assert h.slot == "morning"
+    assert h.edited_by_user_id == fake_user.user_id
+
+
+async def test_flip_creates_second_history_row(
+    client: AsyncClient, fake_user, seed_medicine, cleanup
+):
+    today = date.today()
+    body = {
+        "medicine_id": str(seed_medicine),
+        "log_date": today.isoformat(),
+        "slot": "morning",
+        "taken": True,
+    }
+    r1 = await client.put("/medication-log", json=body)
+    assert r1.status_code == 200
+
+    body["taken"] = False
+    r2 = await client.put("/medication-log", json=body)
+    assert r2.status_code == 200
+
+    history = await _history_rows(fake_user.user_id)
+    assert len(history) == 2
+    assert history[0].prior_taken is None
+    assert history[0].new_taken is True
+    assert history[1].prior_taken is True
+    assert history[1].new_taken is False
+
+
+async def test_idempotent_put_writes_no_history(
+    client: AsyncClient, fake_user, seed_medicine, cleanup
+):
+    today = date.today()
+    body = {
+        "medicine_id": str(seed_medicine),
+        "log_date": today.isoformat(),
+        "slot": "morning",
+        "taken": True,
+    }
+    await client.put("/medication-log", json=body)
+    await client.put("/medication-log", json=body)
+    await client.put("/medication-log", json=body)
+
+    history = await _history_rows(fake_user.user_id)
+    assert len(history) == 1
+
+
+async def test_get_history_endpoint_returns_chronological(
+    client: AsyncClient, fake_user, seed_medicine, cleanup
+):
+    today = date.today()
+    body = {
+        "medicine_id": str(seed_medicine),
+        "log_date": today.isoformat(),
+        "slot": "morning",
+        "taken": True,
+    }
+    await client.put("/medication-log", json=body)
+    body["taken"] = False
+    await client.put("/medication-log", json=body)
+    body["taken"] = True
+    await client.put("/medication-log", json=body)
+
+    resp = await client.get("/medication-log/history")
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()
+    assert len(rows) == 3
+    # newest first
+    assert rows[0]["new_taken"] is True
+    assert rows[0]["prior_taken"] is False
+    assert rows[1]["new_taken"] is False
+    assert rows[1]["prior_taken"] is True
+    assert rows[2]["new_taken"] is True
+    assert rows[2]["prior_taken"] is None
+
+
+async def test_history_filtered_by_date_range(
+    client: AsyncClient, fake_user, seed_medicine, cleanup
+):
+    today = date.today()
+    for offset in (1, 5, 40):
+        log_date = today - timedelta(days=offset)
+        await client.put(
+            "/medication-log",
+            json={
+                "medicine_id": str(seed_medicine),
+                "log_date": log_date.isoformat(),
+                "slot": "morning",
+                "taken": True,
+            },
+        )
+
+    resp = await client.get(
+        "/medication-log/history",
+        params={
+            "from": (today - timedelta(days=7)).isoformat(),
+            "to": today.isoformat(),
+        },
+    )
+    assert resp.status_code == 200
+    rows = resp.json()
+    assert len(rows) == 2
+    log_dates = {r["log_date"] for r in rows}
+    assert log_dates == {
+        (today - timedelta(days=1)).isoformat(),
+        (today - timedelta(days=5)).isoformat(),
+    }
