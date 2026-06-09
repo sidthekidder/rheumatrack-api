@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,3 +87,28 @@ async def patch_my_patient(
     await db.commit()
     await db.refresh(patient)
     return patient
+
+
+@router.post("/me/request-deletion", status_code=status.HTTP_204_NO_CONTENT)
+async def request_account_deletion(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Mark this patient for account deletion. The row is purged by an
+    out-of-band cleanup job within 30 days, per the privacy policy. We don't
+    delete inline because the user may want to recover if they change their
+    mind, and because patient data has downstream FKs we'd rather sweep in a
+    controlled job."""
+    result = await db.execute(
+        select(Patient).where(Patient.id == current_user.user_id)
+    )
+    patient = result.scalar_one_or_none()
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not onboarded",
+        )
+
+    if patient.deletion_requested_at is None:
+        patient.deletion_requested_at = datetime.now(timezone.utc)
+        await db.commit()
